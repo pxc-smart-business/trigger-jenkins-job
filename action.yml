@@ -112,16 +112,44 @@ runs:
         fi
 
         #STEP 2: Did STEP 1 return a 201. If so, continue, if not, stop the script
-        #Regex to get the queue URL
-        regex="location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
-        #Does the returned value contain HTTP/2 201
-        if [[ "$TRIGGERJOBJSON" == *"HTTP/2 201"* ]]; then
-          echo "Job triggered successfully"
-          echo "--------------------------------------"
+        #Parsing is different for HTTP/2 vs HTTP/1.1, so check which one to use
+        http_version_regex="*HTTP\/2*"
+        if [[ $TRIGGERJOBJSON =~ $http_version_regex ]]; then
+          if [[ $verbose == true ]]; then
+            echo "HTTP/2 Detected"
+          fi
+          http2=true
         else
-          echo "HTTP/2 201 NOT FOUND. Exiting script with error"
-          echo "--------------------------------------"
-          exit 1
+          if [[ $verbose == true ]]; then
+            echo "HTTP/1.X Detected"
+          fi
+          http2=false
+        fi
+
+        if  [[ $http2 == true ]]; then
+          #Regex to get the queue URL
+          regex="location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
+          #Does the returned value contain HTTP/2 201
+          if [[ "$TRIGGERJOBJSON" == *"HTTP/2 201"* ]]; then
+            echo "Job triggered successfully"
+            echo "--------------------------------------"
+          else
+            echo "HTTP/2 201 NOT FOUND. Exiting script with error"
+            echo "--------------------------------------"
+            exit 1
+          fi
+        else
+          #Regex to get the queue URL
+          regex="Location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
+          #Does the returned value contain 201 Created
+          if [[ "$TRIGGERJOBJSON" == *"201 Created"* ]]; then
+            echo "Job triggered successfully"
+            echo "--------------------------------------"
+          else
+            echo "201 Created NOT FOUND. Exiting script with error"
+            echo "--------------------------------------"
+            exit 1
+          fi
         fi
 
         #STEP 3: Get the queue location from TRIGGERJOBJSON
