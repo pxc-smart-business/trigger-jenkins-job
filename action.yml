@@ -39,10 +39,6 @@ inputs:
   file-parameters:
     description: 'file parameters in the format: FILEPARAMNAME=@FILEPATH'
     required: false
-  http2:
-    description: 'Use HTTP/2 for requests (true/false)'
-    required: false
-    default: false
 outputs:
   build-url:
     description: URL of Build triggered by action
@@ -116,6 +112,20 @@ runs:
         fi
 
         #STEP 2: Did STEP 1 return a 201. If so, continue, if not, stop the script
+        #Parsing is different for HTTP/2 vs HTTP/1.1, so check which one to use
+        http_version_regex="*HTTP\/2*"
+        if [[ $TRIGGERJOBJSON =~ $http_version_regex ]]; then
+          if [[ $verbose == true ]]; then
+            echo "HTTP/2 Detected"
+          fi
+          http2=true
+        else
+          if [[ $verbose == true ]]; then
+            echo "HTTP/1.X Detected"
+          fi
+          http2=false
+        fi
+
         if  [[ $http2 == true ]]; then
           #Regex to get the queue URL
           regex="location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
