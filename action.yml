@@ -39,6 +39,10 @@ inputs:
   file-parameters:
     description: 'file parameters in the format: FILEPARAMNAME=@FILEPATH'
     required: false
+  http2:
+    description: 'Use HTTP/2 for requests (true/false)'
+    required: false
+    default: false
 outputs:
   build-url:
     description: URL of Build triggered by action
@@ -112,16 +116,30 @@ runs:
         fi
 
         #STEP 2: Did STEP 1 return a 201. If so, continue, if not, stop the script
-        #Regex to get the queue URL
-        regex="location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
-        #Does the returned value contain HTTP/2 201
-        if [[ "$TRIGGERJOBJSON" == *"HTTP/2 201"* ]]; then
-          echo "Job triggered successfully"
-          echo "--------------------------------------"
+        if  [[ $http2 == true ]]; then
+          #Regex to get the queue URL
+          regex="location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
+          #Does the returned value contain HTTP/2 201
+          if [[ "$TRIGGERJOBJSON" == *"HTTP/2 201"* ]]; then
+            echo "Job triggered successfully"
+            echo "--------------------------------------"
+          else
+            echo "HTTP/2 201 NOT FOUND. Exiting script with error"
+            echo "--------------------------------------"
+            exit 1
+          fi
         else
-          echo "HTTP/2 201 NOT FOUND. Exiting script with error"
-          echo "--------------------------------------"
-          exit 1
+          #Regex to get the queue URL
+          regex="Location:\s*(http.*\/queue\/item\/([0-9]+)\/)"
+          #Does the returned value contain 201 Created
+          if [[ "$TRIGGERJOBJSON" == *"201 Created"* ]]; then
+            echo "Job triggered successfully"
+            echo "--------------------------------------"
+          else
+            echo "201 Created NOT FOUND. Exiting script with error"
+            echo "--------------------------------------"
+            exit 1
+          fi
         fi
 
         #STEP 3: Get the queue location from TRIGGERJOBJSON
